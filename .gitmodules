@@ -1,0 +1,6 @@
+[submodule "client"]
+	path = client
+	url = https://github.com/slackr/echoes.client.git
+[submodule "raindrops"]
+	path = raindrops
+	url = https://github.com/slackr/raindrops.git
