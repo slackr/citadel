@@ -37,7 +37,7 @@ $router->add_route('!',
 			return $response;
         }
 
-		$sh = new \Raindrops\SessionHandler($db, $data['realm']);
+		$sh = new \Raindrops\SessionHandler($db, $data['realm'], session_id(), $_SERVER['REMOTE_ADDR']);
 		if ($sh->verify()) {
 			$id = $sh->id;
 		} else {
@@ -55,9 +55,10 @@ $router->add_route('verify-session',
 	$data = array(
 		'realm' => $realm,
 		'session_id' => $_POST['session_id'],
+		'session_ip' => (isset($_POST['session_ip']) ? $_POST['session_ip'] : $_SERVER['REMOTE_ADDR']),
 	),
 	function($data) use (& $db) {
-		$sh = new \Raindrops\SessionHandler($db, $data['realm'], $data['session_id']);
+		$sh = new \Raindrops\SessionHandler($db, $data['realm'], $data['session_id'], $data['session_ip']);
 		if ($sh->verify()) {
 			$response = array(
 				'status' => 'success',
@@ -97,7 +98,7 @@ $router->add_route('auth-reply',
                     'identity' => $sfa->identity,
                 );
 
-                $sfa->generate_auth_token();
+                $sfa->generate_auth_token(array($_SERVER['REMOTE_ADDR']));
                 $_SESSION['rd_auth_token'] = $sfa->token;
                 $_SESSION['rd_auth_identity'] = $sfa->identity;
 
@@ -300,18 +301,6 @@ $router->add_route('channel',
     }
 );
 
-$router->add_route('/client/',
-    $data = array(
-    ),
-    function($data) {
-        $response = array(
-            'include' => (__DIR__).'/client/view/ui.html',
-        );
-
-        return $response;
-    }
-);
-
 $router->add_route('*',
     $data = array(
     ),
@@ -319,7 +308,7 @@ $router->add_route('*',
         $response = array(
             'include' => (__DIR__).'/client/view/ui.html',
         );
-		
+
         return $response;
     }
 );
