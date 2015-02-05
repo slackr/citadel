@@ -20,12 +20,16 @@ $router = new \Raindrops\Router();
 $db = new \Raindrops\Database('mysql');
 $realm = 'slacknet';
 $id = null;
+$anon_routes = array( // dont check session for these routes
+    'verify-session',
+    '',
+);
 
 $router->add_route('!',
     $data = array(
         'realm' => $realm,
     ),
-    function($data) use (& $db, & $id) {
+    function($data) use (& $db, & $id, & $anon_routes, & $router) {
         $response = null;
 
         if (! $db->connect()) {
@@ -33,19 +37,20 @@ $router->add_route('!',
                 'status' => 'error',
                 'message' => 'Database error: '. join('',$db->log_tail(1)),
             );
-
-			return $response;
         }
 
-		$sh = new \Raindrops\SessionHandler($db, $data['realm'], session_id(), $_SERVER['REMOTE_ADDR']);
-		if ($sh->verify()) {
-			$id = $sh->id;
-		} else {
-			$response = array(
-				'status' => 'error',
-				'message' => 'Session is invalid, please login again: '. join('', $sh->log_tail(1)),
-			);
-		}
+        if (! in_array($router->request_action, $anon_routes)) {
+
+            $sh = new \Raindrops\SessionHandler($db, $data['realm'], session_id(), $_SERVER['REMOTE_ADDR']);
+            if ($sh->verify()) {
+                $id = $sh->id;
+            } else {
+                $response = array(
+                    'status' => 'error',
+                    'message' => 'Session is invalid, please login again: '. join('', $sh->log_tail(1)),
+                );
+            }
+        }
 
         return $response;
     }
@@ -59,39 +64,45 @@ $router->add_route('verify-session',
 	),
 	function($data) use (& $db) {
 		$sh = new \Raindrops\SessionHandler($db, $data['realm'], $data['session_id'], $data['session_ip']);
-		if ($sh->verify()) {
+		if ($sh->verify($read_only = true)) {
 			$response = array(
 				'status' => 'success',
 				'message' => 'Session is valid',
+                'session_id' => $sh->session_id,
+                'session_ip' => $sh->session_ip,
 			);
 		} else {
 			$response = array(
 				'status' => 'error',
 				'message' => 'Session is invalid: '. join('', $sh->log_tail(1)),
+                'session_id' => $sh->session_id,
+                'session_ip' => $sh->session_ip,
 			);
 		}
+        return $response;
 	}
 );
 
 $router->add_route('auth-reply',
     $data = array(
 		/**
-		 * POST auth-reply_data:
+		 * POST data:
 		 * identity = string
 		 * challenge = hash string
 		 * signature = base64 signature
+		 * device = device assoc for pubkey
 		 */
-        'authreply_data' => $_POST['auth-reply_data'],
+        'data' => $_POST['data'],
         'realm' => $realm,
     ),
     function($data) use (& $db) {
-        $json_incoming = json_decode($data['auth-reply_data']);
+        $json_incoming = json_decode($data['data']);
         $json_error = json_last_error();
 
         $crypto = new \Raindrops\Crypto();
         $sfa = new \Raindrops\Authentication($db, $json_incoming->{'identity'}, $data['realm']);
         if ($sfa->get_identity()) {
-            if ($crypto->verify_signature($json_incoming->{'challenge'}, $json_incoming->{'signature'}, $sfa->pubkey)) {
+            if ($crypto->verify_signature($json_incoming->{'challenge'}, $json_incoming->{'signature'}, $sfa->pubkeys[$data['device']])) {
                 $response = array(
                     'status' => 'success',
                     'message' => 'Authentication successful',
@@ -127,11 +138,11 @@ $router->add_route('auth-request',
 		 * POST auth-request_data:
 		 * identity = string
 		 */
-        'auth_data' => $_POST['auth-request_data'],
+        'data' => $_POST['data'],
         'realm' => $realm,
     ),
     function($data) use (& $db) {
-        $json_incoming = json_decode($data['auth-request_data']);
+        $json_incoming = json_decode($data['data']);
         $json_error = json_last_error();
 
         $sfa = new \Raindrops\Authentication($db, $json_incoming->{'identity'}, $data['realm']);
@@ -159,11 +170,11 @@ $router->add_route('register',
 		 * identity = string
 		 * pubkey = string
 		 */
-        'register_data' => str_replace(array("\n", "\r"), "\\n", $_POST['register_data']),
+        'data' => str_replace(array("\n", "\r"), "\\n", $_POST['data']),
         'realm' => $realm,
     ),
     function($data) use (& $db) {
-        $json_incoming = json_decode($data['register_data']);
+        $json_incoming = json_decode($data['data']);
         $json_error = json_last_error();
 
         $sfr = new \Raindrops\Registration($db, $json_incoming->{'identity'}, $data['realm']);
@@ -175,14 +186,14 @@ $router->add_route('register',
             $response = array(
                 'status' => 'success',
                 'identity' => $sfr->identity,
-                'pubkey' => $sfr->pubkey,
+                'pubkeys' => $sfr->pubkeys,
             );
         } else {
             $response = array(
                 'status' => 'error',
                 'message' => join('',$sfr->log_tail(1)),
                 'identity' => $sfr->identity,
-                'pubkey' => $sfr->pubkey,
+                'pubkeys' => $sfr->pubkeys,
             );
         }
         return $response;
@@ -314,7 +325,6 @@ $router->add_route('*',
 );
 
 $view = $router->process();
-
 if (isset($view['include'])) {
 	include $view['include'];
 } else {
