@@ -22,6 +22,9 @@ $realm = 'slacknet';
 $id = null;
 $anon_routes = array( // dont check session for these routes
     'verify-session',
+    'auth-request',
+    'auth-reply',
+    'register',
     '',
 );
 
@@ -35,19 +38,21 @@ $router->add_route('!',
         if (! $db->connect()) {
             $response = array(
                 'status' => 'error',
-                'message' => 'Database error: '. join('',$db->log_tail(1)),
+                'message' => 'Database error',
+                'db_log' => $db->log_tail(10),
             );
         }
 
         if (! in_array($router->request_action, $anon_routes)) {
-
             $sh = new \Raindrops\SessionHandler($db, $data['realm'], session_id(), $_SERVER['REMOTE_ADDR']);
             if ($sh->verify()) {
                 $id = $sh->id;
             } else {
                 $response = array(
                     'status' => 'error',
-                    'message' => 'Session is invalid, please login again: '. join('', $sh->log_tail(1)),
+                    'message' => 'Not authenticated, please login or register',
+                    'db_log' => $sh->db->log_tail(10),
+                    'log' => $sh->log_tail(10),
                 );
             }
         }
@@ -67,16 +72,20 @@ $router->add_route('verify-session',
 		if ($sh->verify($read_only = true)) {
 			$response = array(
 				'status' => 'success',
-				'message' => 'Session is valid',
+				'message' => 'Session verified',
                 'session_id' => $sh->session_id,
                 'session_ip' => $sh->session_ip,
+                'db_log' => $sh->db->log_tail(10),
+                'log' => $sh->log_tail(10),
 			);
 		} else {
 			$response = array(
 				'status' => 'error',
-				'message' => 'Session is invalid: '. join('', $sh->log_tail(1)),
+				'message' => 'Session did not verify',
                 'session_id' => $sh->session_id,
                 'session_ip' => $sh->session_ip,
+                'db_log' => $sh->db->log_tail(10),
+                'log' => $sh->log_tail(10),
 			);
 		}
         return $response;
@@ -86,29 +95,23 @@ $router->add_route('verify-session',
 $router->add_route('auth-reply',
     $data = array(
 		/**
-		 * POST data:
-		 * identity = string
-		 * challenge = hash string
-		 * signature = base64 signature
+		 * POST:
+		 * nonce_identity = string
+		 * nonce = hash string
+		 * nonce_signature = base64 signature
 		 * device = device assoc for pubkey
 		 */
-        'data' => $_POST['data'],
+        'nonce_identity' => $_POST['nonce_identity'],
+        'nonce' => $_POST['nonce'],
+        'nonce_signature' => $_POST['nonce_signature'],
+        'device' => $_POST['device'],
         'realm' => $realm,
     ),
     function($data) use (& $db) {
-        $json_incoming = json_decode($data['data']);
-        $json_error = json_last_error();
-
         $crypto = new \Raindrops\Crypto();
-        $sfa = new \Raindrops\Authentication($db, $json_incoming->{'identity'}, $data['realm']);
+        $sfa = new \Raindrops\Authentication($db, $data['nonce_identity'], $data['realm']);
         if ($sfa->get_identity()) {
-            if ($crypto->verify_signature($json_incoming->{'challenge'}, $json_incoming->{'signature'}, $sfa->pubkeys[$data['device']])) {
-                $response = array(
-                    'status' => 'success',
-                    'message' => 'Authentication successful',
-                    'identity' => $sfa->identity,
-                );
-
+            if ($sfa->verify_challenge_response($data)) {
                 $sfa->generate_auth_token(array($_SERVER['REMOTE_ADDR']));
                 $_SESSION['rd_auth_token'] = $sfa->token;
                 $_SESSION['rd_auth_identity'] = $sfa->identity;
@@ -117,17 +120,36 @@ $router->add_route('auth-reply',
                     'status' => 'success',
                     'message' => 'Authentication successful',
                     'identity' => $sfa->identity,
+                    'device' => $data['device'],
 					'session_id' => session_id(),
+                    'db_log' => $sfa->db->log_tail(10),
+                    'log' => $sfa->log_tail(10),
                 );
-
+            } else {
+                $response = array(
+                    'status' => 'error',
+                    'message' => 'Challenge verification failed',
+                    'nonce_identity' => $sfa->identity,
+                    'device' => $data['device'],
+                    'nonce_signature' => $data['nonce_signature'],
+                    'nonce' => $data['nonce'],
+                    'db_log' => $sfa->db->log_tail(10),
+                    'log' => $sfa->log_tail(10),
+                );
             }
         } else {
             $response = array(
                 'status' => 'error',
-                'message' => join('',$sfa->log_tail(1)),
-                'identity' => $sfa->identity,
+                'message' => 'Identity retrieval failed',
+                'nonce_identity' => $sfa->identity,
+                'device' => $data['device'],
+                'nonce_signature' => $data['nonce_signature'],
+                'nonce' => $data['nonce'],
+                'db_log' => $sfa->db->log_tail(10),
+                'log' => $sfa->log_tail(10),
             );
         }
+
         return $response;
     }
 );
@@ -135,28 +157,33 @@ $router->add_route('auth-reply',
 $router->add_route('auth-request',
     $data = array(
 		/**
-		 * POST auth-request_data:
+		 * POST:
 		 * identity = string
+		 * device = string
 		 */
-        'data' => $_POST['data'],
+        'identity' => $_POST['identity'],
+        'device' => $_POST['device'],
         'realm' => $realm,
     ),
     function($data) use (& $db) {
-        $json_incoming = json_decode($data['data']);
-        $json_error = json_last_error();
-
-        $sfa = new \Raindrops\Authentication($db, $json_incoming->{'identity'}, $data['realm']);
-        if ($sfa->get_identity() && $sfa->create_challenge()) {
+        $sfa = new \Raindrops\Authentication($db, $data['identity'], $data['realm']);
+        if ($sfa->get_identity() && $sfa->create_challenge($data['device'])) {
             $response = array(
                 'status' => 'success',
-                'challenge' => $sfa->challenge,
+                'nonce' => $sfa->challenge,
                 'identity' => $sfa->identity,
+                'device' => $data['device'],
+                'db_log' => $sfa->db->log_tail(10),
+                'log' => $sfa->log_tail(10),
             );
         } else {
             $response = array(
                 'status' => 'error',
-                'message' => join('',$sfa->log_tail(1)),
+                'message' => 'Authentication request failed',
                 'identity' => $sfa->identity,
+                'device' => $data['device'],
+                'db_log' => $sfa->db->log_tail(10),
+                'log' => $sfa->log_tail(10),
             );
         }
         return $response;
@@ -170,30 +197,32 @@ $router->add_route('register',
 		 * identity = string
 		 * pubkey = string
 		 */
-        'data' => str_replace(array("\n", "\r"), "\\n", $_POST['data']),
+        'identity' => $_POST['identity'],
+        'pubkey' => $_POST['pubkey'],
         'realm' => $realm,
     ),
     function($data) use (& $db) {
-        $json_incoming = json_decode($data['data']);
-        $json_error = json_last_error();
-
-        $sfr = new \Raindrops\Registration($db, $json_incoming->{'identity'}, $data['realm']);
+        $sfr = new \Raindrops\Registration($db, $data['identity'], $data['realm']);
 
         $identity_data = array(
-            'pubkey' => $json_incoming->{'pubkey'},
+            'pubkey' => $data['pubkey'],
         );
         if ($sfr->create_identity($identity_data)) {
             $response = array(
                 'status' => 'success',
                 'identity' => $sfr->identity,
                 'pubkeys' => $sfr->pubkeys,
+                'db_log' => $sfr->db->log_tail(10),
+                'log' => $sfr->log_tail(10),
             );
         } else {
             $response = array(
                 'status' => 'error',
-                'message' => join('',$sfr->log_tail(1)),
+                'message' => 'Registration failed',
                 'identity' => $sfr->identity,
                 'pubkeys' => $sfr->pubkeys,
+                'db_log' => $sfr->db->log_tail(10),
+                'log' => $sfr->log_tail(10),
             );
         }
         return $response;
@@ -238,7 +267,7 @@ $router->add_route('channel',
 				} else {
 					$response = array(
 						'status' => 'error',
-						'message' => "Failed to join channel: ". join('',$channel->log_tail(1)),
+						'message' => "Failed to join channel: ". json_encode($channel->log_tail(5)),
 					);
 				}
 			break;
@@ -251,7 +280,7 @@ $router->add_route('channel',
 				} else {
 					$response = array(
 						'status' => 'error',
-						'message' => "Failed to part channel: ". join('',$channel->log_tail(1)),
+						'message' => "Failed to part channel: ". json_encode($channel->log_tail(5)),
 					);
 				}
 			break;
@@ -276,7 +305,7 @@ $router->add_route('channel',
 					} else {
 						$response = array(
 							'status' => 'error',
-							'message' => "Failed to send message: ". join('',$channel_message->log_tail(1)),
+							'message' => "Failed to send message: ". json_encode($channel_message->log_tail(5)),
 						);
 					}
 				} else {
@@ -296,7 +325,7 @@ $router->add_route('channel',
 				} else {
 					$response = array(
 						'status' => 'error',
-						'message' => "Failed to get messages: ". join('', $channel_message->log_tail(1)),
+						'message' => "Failed to get messages: ". json_encode($channel_message->log_tail(5)),
 					);
 				}
 			break;
