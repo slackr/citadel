@@ -52,10 +52,11 @@ describe("Parallax", function() {
     var url = host + '/';
     var c = new EchoesCrypto();
 
-    var $identity = 'jasmine';
-    var $device = 'dev';
-
-    var $privkey =  "-----BEGIN PRIVATE KEY-----\n" +
+    var $global = {
+        identity: 'jasmine',
+        nonce_identity: 'jasmine',
+        device: 'dev',
+        privkey:    "-----BEGIN PRIVATE KEY-----\n" +
                     "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCxGBD38PnNEH2J\n" +
                     "8A4fzo+YpQeMJB0wPokBreUMc6i9Q26ruLXfQWOY0ZtmlYkMqNlJO1GU3IviDzTH\n" +
                     "xIAufvvJph4OomdHrgUKRv93FYJUNoCdAQ7FI0Rf+lgsTYgPynGa0lWjbaRKFWyv\n" +
@@ -82,16 +83,13 @@ describe("Parallax", function() {
                     "J7HwSHwg5wJ5xMPoNbNUnGwFLHcqJ5iQhpikO6pUyLEMEUf05B43SxuQkEUj8tKO\n" +
                     "BVwKqjRYtB5vIbzFC55O7RD23dwfcSKWvzphLsJRJXTgatg+9lYI0QJEiqa0SDeR\n" +
                     "5U178ThLhpQFRhu4ZZKXUvk=\n" +
-                    "-----END PRIVATE KEY-----\n";
+                    "-----END PRIVATE KEY-----\n",
 
-    // populate in auth-request, send back in auth-reply
-    var $nonce = 'not set';
+        nonce: 'empty',
+        nonce_signature: 'empty',
+        session_id: 'empty',
 
-    // populate in auth-reply after signing $nonce
-    var $signature = 'not set';
-
-    // populate in auth-reply after successful auth
-    var $session_id = 'not set';
+    }
 
     describe("auth-request", function() {
         var o = new EchoesObject('auth-request');
@@ -103,7 +101,7 @@ describe("Parallax", function() {
                     expect(r.status).toEqual(expected);
 
                     if (typeof r.nonce != 'undefined') {
-                        $nonce = r.nonce;
+                        $global.nonce = r.nonce;
                     }
                 };
                 var rejected = function(e) {
@@ -127,15 +125,15 @@ describe("Parallax", function() {
 
         var mock_auth_request = {
             'bad_id': {
-                data: { identity: '$#%', device: $device },
+                data: { identity: '$#%', device: $global.device },
                 expected: 'error',
             },
             'bad_device': {
-                data: { identity: $identity, device: '$%$#' },
+                data: { identity: $global.identity, device: '$%$#' },
                 expected: 'error',
             },
             'good_id': {
-                data: { identity: $identity, device: $device },
+                data: { identity: $global.identity, device: $global.device },
                 expected: 'success',
             }
         }
@@ -158,13 +156,13 @@ describe("Parallax", function() {
                 done();
             };
 
-            c.import_key('sign', $privkey, 'pkcs8', true)
+            c.import_key('sign', $global.privkey, 'pkcs8', true)
                 .then(resolved)
                 .catch(rejected);
         });
-        it("should sign $nonce with imported 'sign' privkey", function(done) {
+        it("should sign $global.nonce with imported 'sign' privkey", function(done) {
             var resolved = function(r) {
-                $signature = btoa(c.resulting_signature);
+                $global.nonce_signature = btoa(c.resulting_signature);
                 expect(c.resulting_signature).not.toBe(null);
                 done();
             };
@@ -173,7 +171,7 @@ describe("Parallax", function() {
                 done();
             };
 
-            c.sign($nonce, c.keychain['sign'].imported.private_key)
+            c.sign($global.nonce, c.keychain['sign'].imported.private_key)
                 .then(resolved)
                 .catch(rejected);
         });
@@ -185,7 +183,7 @@ describe("Parallax", function() {
                     expect(r.status).toEqual(expected);
 
                     if (typeof r.session_id != 'undefined') {
-                        $session_id = r.session_id;
+                        $global.session_id = r.session_id;
                     }
                 };
                 var rejected = function(e) {
@@ -194,10 +192,11 @@ describe("Parallax", function() {
                     done();
                 };
 
-
-                data.nonce_identity = data.nonce_identity == 'use global' ? $identity : data.nonce_identity;
-                data.nonce_signature = data.nonce_signature == 'use global' ? $signature : data.nonce_signature;
-                data.nonce = data.nonce == 'use global' ? $nonce : data.nonce;
+                for (var item in data) {
+                    if (data[item] == 'use global') {
+                        data[item] = $global[item];
+                    }
+                }
 
                 $.ajax({
                     type: "POST",
@@ -218,7 +217,7 @@ describe("Parallax", function() {
                     nonce_identity: 'use global',
                     nonce: 'use global',
                     nonce_signature: 'invalid!',
-                    device: $device,
+                    device: $global.device,
                 },
                 expected: 'error',
             },
@@ -227,7 +226,7 @@ describe("Parallax", function() {
                     nonce_identity: 'test',
                     nonce: 'use global',
                     nonce_signature: 'use global',
-                    device: $device,
+                    device: $global.device,
                 },
                 expected: 'error',
             },
@@ -236,7 +235,7 @@ describe("Parallax", function() {
                     nonce_identity: 'use global',
                     nonce: 'use global',
                     nonce_signature: 'use global',
-                    device: $device,
+                    device: $global.device,
                 },
                 expected: 'success',
             },
@@ -264,6 +263,14 @@ describe("Parallax", function() {
                     done();
                 };
 
+
+                for (var item in data) {
+                    if (data[item] == 'use global') {
+                        data[item] = $global[item];
+                    }
+                }
+
+
                 $.ajax({
                     type: "POST",
                     url: host + '/verify-session/',
@@ -283,8 +290,12 @@ describe("Parallax", function() {
                 expected: 'error',
             },
             'bad_ip': {
-                data: { session_id: 'c5379fhahq7mt3dse613omc1j4', session_ip: '127.0.0.2' },
+                data: { session_id: 'use global', session_ip: '127.0.0.2' },
                 expected: 'error',
+            },
+            'good_session': {
+                data: { session_id: 'use global', session_ip: '::1' },
+                expected: 'success',
             }
         }
         for (var t in mock) {
