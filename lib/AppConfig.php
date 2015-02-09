@@ -1,6 +1,9 @@
 <?php namespace Parallax;
 
 class AppConfig {
+    const DEBUG = true;
+    const DEBUG_LOG_TAIL = 10;
+
     const DB_TABLE_USERS = 'channel_members';
     const DB_TABLE_CHANNEL_MEMBERS = 'channel_members';
     const DB_TABLE_CHANNEL_MESSAGES = 'channel_messages';
