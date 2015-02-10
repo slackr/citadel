@@ -14,11 +14,9 @@ use \Parallax\ChannelMessage;
 use \Parallax\ChannelMember;
 use \Parallax\AppConfig;
 
-session_start();
-
 $router = new \Raindrops\Router();
 $db = new \Raindrops\Database('mysql');
-$realm = 'slacknet';
+$realm = 'parallax';
 $id = null;
 $anon_routes = array( // dont check session for these routes
     'verify-session',
@@ -27,6 +25,8 @@ $anon_routes = array( // dont check session for these routes
     'register',
     '',
 );
+
+session_start();
 
 $router->add_route('!',
     $data = array(
@@ -39,7 +39,7 @@ $router->add_route('!',
             $response = array(
                 'status' => 'error',
                 'message' => 'Database error',
-                'db_log' => $db->log_tail(10),
+                'db_log' => $db->log_tail(AppConfig::DEBUG_LOG_TAIL),
             );
         }
 
@@ -51,8 +51,8 @@ $router->add_route('!',
                 $response = array(
                     'status' => 'error',
                     'message' => 'Not authenticated, please login or register',
-                    'db_log' => $sh->db->log_tail(10),
-                    'log' => $sh->log_tail(10),
+                    'db_log' => $sh->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                    'log' => $sh->log_tail(AppConfig::DEBUG_LOG_TAIL),
                 );
             }
         }
@@ -75,8 +75,8 @@ $router->add_route('verify-session',
 				'message' => 'Session verified',
                 'session_id' => $sh->session_id,
                 'session_ip' => $sh->session_ip,
-                'db_log' => $sh->db->log_tail(10),
-                'log' => $sh->log_tail(10),
+                'db_log' => $sh->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'log' => $sh->log_tail(AppConfig::DEBUG_LOG_TAIL),
 			);
 		} else {
 			$response = array(
@@ -84,8 +84,8 @@ $router->add_route('verify-session',
 				'message' => 'Session did not verify',
                 'session_id' => $sh->session_id,
                 'session_ip' => $sh->session_ip,
-                'db_log' => $sh->db->log_tail(10),
-                'log' => $sh->log_tail(10),
+                'db_log' => $sh->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'log' => $sh->log_tail(AppConfig::DEBUG_LOG_TAIL),
 			);
 		}
         return $response;
@@ -122,8 +122,8 @@ $router->add_route('auth-reply',
                     'identity' => $sfa->identity,
                     'device' => $data['device'],
 					'session_id' => session_id(),
-                    'db_log' => $sfa->db->log_tail(10),
-                    'log' => $sfa->log_tail(10),
+                    'db_log' => $sfa->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                    'log' => $sfa->log_tail(AppConfig::DEBUG_LOG_TAIL),
                 );
             } else {
                 $response = array(
@@ -133,8 +133,8 @@ $router->add_route('auth-reply',
                     'device' => $data['device'],
                     'nonce_signature' => $data['nonce_signature'],
                     'nonce' => $data['nonce'],
-                    'db_log' => $sfa->db->log_tail(10),
-                    'log' => $sfa->log_tail(10),
+                    'db_log' => $sfa->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                    'log' => $sfa->log_tail(AppConfig::DEBUG_LOG_TAIL),
                 );
             }
         } else {
@@ -145,8 +145,8 @@ $router->add_route('auth-reply',
                 'device' => $data['device'],
                 'nonce_signature' => $data['nonce_signature'],
                 'nonce' => $data['nonce'],
-                'db_log' => $sfa->db->log_tail(10),
-                'log' => $sfa->log_tail(10),
+                'db_log' => $sfa->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'log' => $sfa->log_tail(AppConfig::DEBUG_LOG_TAIL),
             );
         }
 
@@ -173,8 +173,8 @@ $router->add_route('auth-request',
                 'nonce' => $sfa->challenge,
                 'identity' => $sfa->identity,
                 'device' => $data['device'],
-                'db_log' => $sfa->db->log_tail(10),
-                'log' => $sfa->log_tail(10),
+                'db_log' => $sfa->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'log' => $sfa->log_tail(AppConfig::DEBUG_LOG_TAIL),
             );
         } else {
             $response = array(
@@ -182,8 +182,8 @@ $router->add_route('auth-request',
                 'message' => 'Authentication request failed',
                 'identity' => $sfa->identity,
                 'device' => $data['device'],
-                'db_log' => $sfa->db->log_tail(10),
-                'log' => $sfa->log_tail(10),
+                'db_log' => $sfa->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'log' => $sfa->log_tail(AppConfig::DEBUG_LOG_TAIL),
             );
         }
         return $response;
@@ -193,12 +193,13 @@ $router->add_route('auth-request',
 $router->add_route('register',
     $data = array(
 		/**
-		 * POST register_data:
+		 * POST:
 		 * identity = string
 		 * pubkey = string
 		 */
         'identity' => $_POST['identity'],
         'pubkey' => $_POST['pubkey'],
+        'device' => $_POST['device'],
         'realm' => $realm,
     ),
     function($data) use (& $db) {
@@ -206,14 +207,16 @@ $router->add_route('register',
 
         $identity_data = array(
             'pubkey' => $data['pubkey'],
+            'device' => $data['device'],
         );
         if ($sfr->create_identity($identity_data)) {
             $response = array(
                 'status' => 'success',
+                'message' => 'Identity created',
                 'identity' => $sfr->identity,
                 'pubkeys' => $sfr->pubkeys,
-                'db_log' => $sfr->db->log_tail(10),
-                'log' => $sfr->log_tail(10),
+                'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
             );
         } else {
             $response = array(
@@ -221,8 +224,51 @@ $router->add_route('register',
                 'message' => 'Registration failed',
                 'identity' => $sfr->identity,
                 'pubkeys' => $sfr->pubkeys,
-                'db_log' => $sfr->db->log_tail(10),
-                'log' => $sfr->log_tail(10),
+                'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
+            );
+        }
+        return $response;
+    }
+);
+
+$router->add_route('delete-identity',
+    $data = array(
+		/**
+		 * POST:
+		 * identity = string
+		 */
+        'identity' => $_POST['identity'],
+        'realm' => $realm,
+    ),
+    function($data) use (& $db, & $id) {
+        if ($id->identity !== $data['identity']) {
+            $response = array(
+                'status' => 'error',
+                'message' => 'Please confirm deletion by posting your identity',
+                'identity' => $id->identity,
+            );
+            return $response;
+        }
+
+        $sfr = new \Raindrops\Registration($db, $data['identity'], $data['realm']);
+
+        if ($sfr->delete_identity()) {
+            $response = array(
+                'status' => 'success',
+                'message' => 'Identity deleted',
+                'identity' => $sfr->identity,
+                'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
+            );
+        } else {
+            $response = array(
+                'status' => 'error',
+                'message' => 'Identity deletion failed',
+                'identity' => $sfr->identity,
+                'pubkeys' => $sfr->pubkeys,
+                'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
             );
         }
         return $response;
