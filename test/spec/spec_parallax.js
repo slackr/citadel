@@ -9,13 +9,13 @@ c.keychain.sign.exported.public_key
 
 describe("Parallax", function() {
     var host = 'http://localhost'; // run test from http://localhost/test/test.html only
-    var url = host + '/';
     var c = new EchoesCrypto();
 
     var $global = {
         identity: 'jasmine',
         nonce_identity: 'jasmine',
         device: 'dev',
+        email: 'jasmine@specrunner.ca',
         privkey:    "-----BEGIN PRIVATE KEY-----\n" +
                     "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCxGBD38PnNEH2J\n" +
                     "8A4fzo+YpQeMJB0wPokBreUMc6i9Q26ruLXfQWOY0ZtmlYkMqNlJO1GU3IviDzTH\n" +
@@ -57,8 +57,75 @@ describe("Parallax", function() {
         nonce: 'empty',
         nonce_signature: 'empty',
         session_id: 'empty',
+        
+        session_ip: '::1',
 
     }
+
+    describe("register", function() {
+        var o = new EchoesObject('register');
+
+        var test_register = function(test_name, data, expected) {
+            it("'" + test_name + "' should return " + expected, function(done) {
+                var resolved = function(r) {
+                    o.log('(' + test_name + ') resolved: ' + JSON.stringify(r));
+                    expect(r.identity).toEqual(data.identity);
+                    expect(r.session_ip).toEqual(data.session_ip);
+                    expect(r.status).toEqual(expected);
+                };
+                var rejected = function(e) {
+                    o.log('rejected: ' + e.statusText + ':' + e.status, 3);
+                    expect(e).toBeUndefined();
+                    done();
+                };
+
+
+                for (var item in data) {
+                    if (data[item] == 'use global') {
+                        data[item] = $global[item];
+                    }
+                }
+
+
+                $.ajax({
+                    type: "POST",
+                    url: host + '/register/',
+                    data: data,
+                    dataType: 'json',
+                })
+                .done(function (data) { resolved(data); })
+                .fail(function (err) { rejected(err); })
+                .always(function() { done() });
+
+            });
+        }
+
+        var mock_register = {
+            'bad_id': {
+                data: { identity: '', pubkey: 'use global', device: 'use global', email: 'use global' },
+                expected: 'error',
+            },
+            'bad_device': {
+                data: { identity: 'use global', pubkey: 'use global', device: '!', email: 'use global' },
+                expected: 'error',
+            },
+            'bad_email': {
+                data: { identity: 'use global', pubkey: 'use global', device: 'use global', email: 'uwotm8@' },
+                expected: 'error',
+            },
+            'bad_pubkey': {
+                data: { identity: 'use global', pubkey: 'xx', device: 'use global', email: 'use global' },
+                expected: 'error',
+            },
+            'good_id': {
+                data: { identity: 'use global', pubkey: 'use global', device: 'use global', email: 'use global' },
+                expected: 'success',
+            }
+        }
+        for (var t in mock_register) {
+            test_register(t, mock_register[t].data, mock_register[t].expected);
+        }
+    });
 
     describe("auth-request", function() {
         var o = new EchoesObject('auth-request');
@@ -66,7 +133,7 @@ describe("Parallax", function() {
         var test_auth_request = function(test_name, data, expected) {
             it("'" + test_name + "' should return " + expected, function(done) {
                 var resolved = function(r) {
-                    o.log('resolved: ' + JSON.stringify(r));
+                    o.log('(' + test_name + ') resolved: ' + JSON.stringify(r));
                     expect(r.status).toEqual(expected);
 
                     if (typeof r.nonce != 'undefined') {
@@ -148,7 +215,7 @@ describe("Parallax", function() {
         var test_auth_reply = function(test_name, data, expected) {
             it("'" + test_name + "' should return " + expected, function(done) {
                 var resolved = function(r) {
-                    o.log('resolved: ' + JSON.stringify(r));
+                    o.log('(' + test_name + ') resolved: ' + JSON.stringify(r));
                     expect(r.status).toEqual(expected);
 
                     if (r.status == 'success'
@@ -188,7 +255,7 @@ describe("Parallax", function() {
                     nonce_identity: 'use global',
                     nonce: 'use global',
                     nonce_signature: 'invalid!',
-                    device: $global.device,
+                    device: 'use global',
                 },
                 expected: 'error',
             },
@@ -197,16 +264,16 @@ describe("Parallax", function() {
                     nonce_identity: 'test',
                     nonce: 'use global',
                     nonce_signature: 'use global',
-                    device: $global.device,
+                    device: 'use global',
                 },
                 expected: 'error',
             },
-            'good_reply': {
+            'good_auth': {
                 data: {
                     nonce_identity: 'use global',
                     nonce: 'use global',
                     nonce_signature: 'use global',
-                    device: $global.device,
+                    device: 'use global',
                 },
                 expected: 'success',
             },
@@ -218,12 +285,11 @@ describe("Parallax", function() {
 
     describe("verify-session", function() {
         var o = new EchoesObject('verify-session');
-        url = host + '/verify-session/';
 
         var test_verify_session = function(test_name, data, expected) {
             it("'" + test_name + "' should return " + expected, function(done) {
                 var resolved = function(r) {
-                    o.log('resolved: ' + JSON.stringify(r));
+                    o.log('(' + test_name + ') resolved: ' + JSON.stringify(r));
                     expect(r.session_id).toEqual(data.session_id);
                     expect(r.session_ip).toEqual(data.session_ip);
                     expect(r.status).toEqual(expected);
@@ -255,9 +321,9 @@ describe("Parallax", function() {
             });
         }
 
-        var mock = {
+        var mock_verify_session = {
             'bad_sid': {
-                data: { session_id: 'bad_sid', session_ip: '127.0.0.1' },
+                data: { session_id: 'bad_sid', session_ip: 'use global' },
                 expected: 'error',
             },
             'bad_ip': {
@@ -265,17 +331,73 @@ describe("Parallax", function() {
                 expected: 'error',
             },
             'expired_sid': {
-                data: { session_id: 'njhna1uq3d005qb53fvg69gl65', session_ip: '::1' },
+                data: { session_id: 'njhna1uq3d005qb53fvg69gl65', session_ip: 'use global' },
                 expected: 'error',
             },
             'good_session': {
-                data: { session_id: 'use global', session_ip: '::1' },
+                data: { session_id: 'use global', session_ip: 'use global' },
                 expected: 'success',
             }
         }
-        for (var t in mock) {
-            test_verify_session(t, mock[t].data, mock[t].expected);
+        for (var t in mock_verify_session) {
+            test_verify_session(t, mock_verify_session[t].data, mock_verify_session[t].expected);
+        }
+    });
+
+    describe("delete-identity", function() {
+        var o = new EchoesObject('delete-identity');
+
+        var test_delete_identity = function(test_name, data, expected) {
+            it("'" + test_name + "' should return " + expected, function(done) {
+                var resolved = function(r) {
+                    o.log('(' + test_name + ') resolved: ' + JSON.stringify(r));
+                    expect(r.identity).toEqual(data.identity);
+                    expect(r.session_ip).toEqual(data.session_ip);
+                    expect(r.status).toEqual(expected);
+                };
+                var rejected = function(e) {
+                    o.log('rejected: ' + e.statusText + ':' + e.status, 3);
+                    expect(e).toBeUndefined();
+                    done();
+                };
+
+
+                for (var item in data) {
+                    if (data[item] == 'use global') {
+                        data[item] = $global[item];
+                    }
+                }
+
+
+                $.ajax({
+                    type: "POST",
+                    url: host + '/delete-identity/',
+                    data: data,
+                    dataType: 'json',
+                })
+                .done(function (data) { resolved(data); })
+                .fail(function (err) { rejected(err); })
+                .always(function() { done() });
+
+            });
         }
 
+        var mock_delete_identity = {
+            'no_confirmation': {
+                data: { identity: '' },
+                expected: 'error',
+            },
+            'bad_confirmation': {
+                data: { identity: 'uwotm8' },
+                expected: 'error',
+            },
+            'good_delete': {
+                data: { identity: 'use global' },
+                expected: 'success',
+            }
+        }
+        for (var t in mock_delete_identity) {
+            test_delete_identity(t, mock_delete_identity[t].data, mock_delete_identity[t].expected);
+        }
     });
 });

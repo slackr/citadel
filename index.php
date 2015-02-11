@@ -200,6 +200,7 @@ $router->add_route('register',
         'identity' => $_POST['identity'],
         'pubkey' => $_POST['pubkey'],
         'device' => $_POST['device'],
+        'email' => $_POST['email'],
         'realm' => $realm,
     ),
     function($data) use (& $db) {
@@ -208,12 +209,15 @@ $router->add_route('register',
         $identity_data = array(
             'pubkey' => $data['pubkey'],
             'device' => $data['device'],
+            'email' => $data['email'],
         );
         if ($sfr->create_identity($identity_data)) {
             $response = array(
                 'status' => 'success',
                 'message' => 'Identity created',
                 'identity' => $sfr->identity,
+                'email' => $sfr->email,
+                'device' => $data['device'],
                 'pubkeys' => $sfr->pubkeys,
                 'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
                 'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
@@ -223,6 +227,8 @@ $router->add_route('register',
                 'status' => 'error',
                 'message' => 'Registration failed',
                 'identity' => $sfr->identity,
+                'email' => $sfr->email,
+                'device' => $data['device'],
                 'pubkeys' => $sfr->pubkeys,
                 'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
                 'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
@@ -246,7 +252,8 @@ $router->add_route('delete-identity',
             $response = array(
                 'status' => 'error',
                 'message' => 'Please confirm deletion by posting your identity',
-                'identity' => $id->identity,
+                'identity' => $data['identity'],
+                'auth_identity' => $id->identity,
             );
             return $response;
         }
@@ -403,6 +410,10 @@ $view = $router->process();
 if (isset($view['include'])) {
 	include $view['include'];
 } else {
+    if (! AppConfig::DEBUG) {
+        $view['log'] = [];
+        $view['db_log'] = [];
+    }
 	echo json_encode($view);
 }
 ?>
