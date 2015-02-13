@@ -44,7 +44,7 @@ $router->add_route('!',
         }
 
         if (! in_array($router->request_action, $anon_routes)) {
-            $sh = new \Raindrops\SessionHandler($db, $data['realm'], session_id(), $_SERVER['REMOTE_ADDR']);
+            $sh = new \Raindrops\SessionHandler($db, $data['realm']);
             if ($sh->verify()) {
                 $id = $sh->id;
             } else {
