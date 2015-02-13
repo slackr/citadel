@@ -291,7 +291,6 @@ describe("Parallax", function() {
                 var resolved = function(r) {
                     o.log('(' + test_name + ') resolved: ' + JSON.stringify(r));
                     expect(r.session_id).toEqual(data.session_id);
-                    expect(r.session_ip).toEqual(data.session_ip);
                     expect(r.status).toEqual(expected);
                 };
                 var rejected = function(e) {
@@ -335,7 +334,7 @@ describe("Parallax", function() {
                 expected: 'error',
             },
             'good_session': {
-                data: { session_id: 'use global', session_ip: 'use global' },
+                data: { session_id: 'use global', session_ip: null },
                 expected: 'success',
             }
         }
