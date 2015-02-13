@@ -8,7 +8,7 @@ c.keychain.sign.exported.public_key
 */
 
 describe("Parallax", function() {
-    var host = 'http://localhost'; // run test from http://localhost/test/test.html only
+    var host = ''; // run test from http://localhost/test/test.html only
     var c = new EchoesCrypto();
 
     var $global = {
@@ -57,7 +57,7 @@ describe("Parallax", function() {
         nonce: 'empty',
         nonce_signature: 'empty',
         session_id: 'empty',
-        
+
         session_ip: '::1',
 
     }
