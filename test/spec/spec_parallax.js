@@ -58,7 +58,7 @@ describe("Parallax", function() {
         nonce_signature: 'empty',
         session_id: 'empty',
 
-        session_ip: '::1',
+        session_ip: '127.0.0.1',
 
     }
 
