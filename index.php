@@ -23,6 +23,10 @@ $anon_routes = array( // dont check session for these routes
     'auth-request',
     'auth-reply',
     'register',
+    'lib',
+    'controller',
+    'view',
+    'app.js',
     '',
 );
 
@@ -394,6 +398,74 @@ $router->add_route('channel',
     }
 );
 
+$router->add_route('lib',
+    $data = array(
+    ),
+    function($data) use(& $router) {
+        switch ($router->secondary_action) {
+            case 'config.js':
+            case 'object.js':
+            case 'crypto.js':
+            case 'ext/jquery.js':
+            case 'ext/jquery-ui.js':
+            case 'ext/socket.io.js':
+                $response = array(
+                    'include' => (__DIR__) .'/client/'. $router->request_action .'/'. $router->secondary_action
+                );
+            break;
+        }
+
+        return $response;
+    }
+);
+$router->add_route('view',
+    $data = array(
+    ),
+    function($data) use(& $router) {
+        switch ($router->secondary_action) {
+            case 'ui.html':
+            case 'ui.css':
+            case 'normalize.css':
+            case 'theme/blu.css':
+            case 'theme/dark.css':
+                $response = array(
+                    'include' => (__DIR__) .'/client/'. $router->request_action .'/'. $router->secondary_action
+                );
+            break;
+        }
+
+        return $response;
+    }
+);
+$router->add_route('controller',
+    $data = array(
+    ),
+    function($data) use(& $router) {
+        switch ($router->secondary_action) {
+            case 'client.js':
+            case 'socket.js':
+            case 'ui.js':
+                $response = array(
+                    'include' => (__DIR__) .'/client/'. $router->request_action .'/'. $router->secondary_action
+                );
+            break;
+        }
+
+        return $response;
+    }
+);
+$router->add_route('app.js',
+    $data = array(
+    ),
+    function($data) use(& $router) {
+        $response = array(
+            'include' => (__DIR__) .'/client/'. $router->request_action
+        );
+
+        return $response;
+    }
+);
+
 $router->add_route('*',
     $data = array(
     ),
@@ -408,7 +480,17 @@ $router->add_route('*',
 
 $view = $router->process();
 if (isset($view['include'])) {
+    $content_types = array(
+        'css' => 'text/css',
+        'js' => 'text/javascript',
+        'html' => 'text/html'
+    );
+
+    $ext = pathinfo($view['include'], PATHINFO_EXTENSION);
+    header('Content-type: '. $content_types[$ext]);
+
 	include $view['include'];
+    //echo $view['include'];
 } else {
     if (! AppConfig::DEBUG) {
         $view['log'] = [];
