@@ -26,8 +26,39 @@ $anon_routes = array( // dont check session for these routes
     'lib',
     'controller',
     'view',
+    'model',
     'app.js',
+    'favicon.ico',
     '',
+);
+
+$includes = array(
+    'model' => array(
+        'storage.js',
+    ),
+    'controller' => array(
+        'client.js',
+        'socket.js',
+        'ui.js',
+    ),
+    'lib' => array(
+        'config.js',
+        'object.js',
+        'crypto.js',
+        'storage.js',
+        'ext/jquery.js',
+        'ext/jquery-ui.js',
+        'ext/socket.io.js'
+    ),
+    'view' => array(
+        'ui.html',
+        'ui.css',
+        'normalize.css',
+        'theme/blu.css',
+        'theme/dark.css',
+    ),
+    'app.js' => array(''),
+    'favicon.ico' => array(''),
 );
 
 session_start();
@@ -398,73 +429,20 @@ $router->add_route('channel',
     }
 );
 
-$router->add_route('lib',
-    $data = array(
-    ),
-    function($data) use(& $router) {
-        switch ($router->secondary_action) {
-            case 'config.js':
-            case 'object.js':
-            case 'crypto.js':
-            case 'ext/jquery.js':
-            case 'ext/jquery-ui.js':
-            case 'ext/socket.io.js':
+foreach (array_keys($includes) as $action) {
+    $router->add_route($action,
+        $secondaries = $includes[$action],
+        function($secondaries) use(& $router) {
+            if (sizeof($secondaries) == 0
+                || in_array($router->secondary_action, $secondaries)) {
                 $response = array(
-                    'include' => (__DIR__) .'/client/'. $router->request_action .'/'. $router->secondary_action
+                    'include' => (__DIR__) .'/client/'. $router->request_action . ($router->secondary_action ? '/'. $router->secondary_action : '')
                 );
-            break;
+            }
+            return $response;
         }
-
-        return $response;
-    }
-);
-$router->add_route('view',
-    $data = array(
-    ),
-    function($data) use(& $router) {
-        switch ($router->secondary_action) {
-            case 'ui.html':
-            case 'ui.css':
-            case 'normalize.css':
-            case 'theme/blu.css':
-            case 'theme/dark.css':
-                $response = array(
-                    'include' => (__DIR__) .'/client/'. $router->request_action .'/'. $router->secondary_action
-                );
-            break;
-        }
-
-        return $response;
-    }
-);
-$router->add_route('controller',
-    $data = array(
-    ),
-    function($data) use(& $router) {
-        switch ($router->secondary_action) {
-            case 'client.js':
-            case 'socket.js':
-            case 'ui.js':
-                $response = array(
-                    'include' => (__DIR__) .'/client/'. $router->request_action .'/'. $router->secondary_action
-                );
-            break;
-        }
-
-        return $response;
-    }
-);
-$router->add_route('app.js',
-    $data = array(
-    ),
-    function($data) use(& $router) {
-        $response = array(
-            'include' => (__DIR__) .'/client/'. $router->request_action
-        );
-
-        return $response;
-    }
-);
+    );
+}
 
 $router->add_route('*',
     $data = array(
