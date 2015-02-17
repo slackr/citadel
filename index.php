@@ -40,6 +40,7 @@ $includes = array(
         'client.js',
         'socket.js',
         'ui.js',
+        'identity.js',
     ),
     'lib' => array(
         'config.js',
@@ -101,15 +102,17 @@ $router->add_route('verify-session',
 		'realm' => $realm,
 		'session_id' => $_POST['session_id'],
 		'session_ip' => (isset($_POST['session_ip']) ? $_POST['session_ip'] : $_SERVER['REMOTE_ADDR']),
+        'identity' => $_POST['identity'],
 	),
 	function($data) use (& $db) {
-		$sh = new \Raindrops\SessionHandler($db, $data['realm'], $data['session_id'], $data['session_ip']);
+		$sh = new \Raindrops\SessionHandler($db, $data['realm'], $data['session_id'], $data['session_ip'], $data['identity']);
 		if ($sh->verify($read_only = true)) {
 			$response = array(
 				'status' => 'success',
 				'message' => 'Session verified',
                 'session_id' => $sh->session_id,
                 'session_ip' => $sh->session_ip,
+                'identity' => $sh->identity,
                 'db_log' => $sh->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
                 'log' => $sh->log_tail(AppConfig::DEBUG_LOG_TAIL),
 			);
@@ -289,6 +292,8 @@ $router->add_route('delete-identity',
                 'message' => 'Please confirm deletion by posting your identity',
                 'identity' => $data['identity'],
                 'auth_identity' => $id->identity,
+                'db_log' => $id->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'log' => $id->log_tail(AppConfig::DEBUG_LOG_TAIL),
             );
             return $response;
         }

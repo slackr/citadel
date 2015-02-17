@@ -322,19 +322,19 @@ describe("Parallax", function() {
 
         var mock_verify_session = {
             'bad_sid': {
-                data: { session_id: 'bad_sid', session_ip: 'use global' },
+                data: { session_id: 'bad_sid', session_ip: 'use global', identity: 'use global' },
                 expected: 'error',
             },
             'bad_ip': {
-                data: { session_id: 'use global', session_ip: '127.0.0.2' },
+                data: { session_id: 'use global', session_ip: '127.0.0.2', identity: 'use global' },
                 expected: 'error',
             },
-            'expired_sid': {
-                data: { session_id: 'njhna1uq3d005qb53fvg69gl65', session_ip: 'use global' },
+            'wrong_id': {
+                data: { session_id: 'use global', session_ip: null, identity: 'wrongid' },
                 expected: 'error',
             },
             'good_session': {
-                data: { session_id: 'use global', session_ip: null },
+                data: { session_id: 'use global', session_ip: null, identity: 'use global' },
                 expected: 'success',
             }
         }
