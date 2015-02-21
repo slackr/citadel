@@ -18,6 +18,7 @@ $router = new \Raindrops\Router();
 $db = new \Raindrops\Database('mysql');
 $realm = 'parallax';
 $id = null;
+$sh = null;
 $anon_routes = array( // dont check session for these routes
     'verify-session',
     'auth-request',
@@ -68,7 +69,7 @@ $router->add_route('!',
     $data = array(
         'realm' => $realm,
     ),
-    function($data) use (& $db, & $id, & $anon_routes, & $router) {
+    function($data) use (& $db, & $id, & $anon_routes, & $router, & $sh) {
         $response = null;
 
         if (! $db->connect()) {
@@ -105,25 +106,25 @@ $router->add_route('verify-session',
         'identity' => $_POST['identity'],
 	),
 	function($data) use (& $db) {
-		$sh = new \Raindrops\SessionHandler($db, $data['realm'], $data['session_id'], $data['session_ip'], $data['identity']);
-		if ($sh->verify($read_only = true)) {
+		$vs = new \Raindrops\SessionHandler($db, $data['realm'], $data['session_id'], $data['session_ip'], $data['identity']);
+		if ($vs->verify($read_only = true)) {
 			$response = array(
 				'status' => 'success',
 				'message' => 'Session verified',
-                'session_id' => $sh->session_id,
-                'session_ip' => $sh->session_ip,
-                'identity' => $sh->identity,
-                'db_log' => $sh->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                'log' => $sh->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'session_id' => $vs->session_id,
+                'session_ip' => $vs->session_ip,
+                'identity' => $vs->identity,
+                'db_log' => $vs->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'log' => $vs->log_tail(AppConfig::DEBUG_LOG_TAIL),
 			);
 		} else {
 			$response = array(
 				'status' => 'error',
 				'message' => 'Session did not verify',
-                'session_id' => $sh->session_id,
-                'session_ip' => $sh->session_ip,
-                'db_log' => $sh->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                'log' => $sh->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'session_id' => $shv->session_id,
+                'session_ip' => $shv->session_ip,
+                'db_log' => $shv->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'log' => $shv->log_tail(AppConfig::DEBUG_LOG_TAIL),
 			);
 		}
         return $response;
@@ -285,7 +286,7 @@ $router->add_route('delete-identity',
         'identity' => $_POST['identity'],
         'realm' => $realm,
     ),
-    function($data) use (& $db, & $id) {
+    function($data) use (& $db, & $id, & $sh) {
         if ($id->identity !== $data['identity']) {
             $response = array(
                 'status' => 'error',
@@ -301,12 +302,14 @@ $router->add_route('delete-identity',
         $sfr = new \Raindrops\Registration($db, $data['identity'], $data['realm']);
 
         if ($sfr->delete_identity()) {
+            $sh->logout();
             $response = array(
                 'status' => 'success',
                 'message' => 'Identity deleted',
                 'identity' => $sfr->identity,
                 'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
                 'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'sh_log' => $sh->log_tail(AppConfig::DEBUG_LOG_TAIL),
             );
         } else {
             $response = array(
@@ -478,6 +481,7 @@ if (isset($view['include'])) {
     if (! AppConfig::DEBUG) {
         $view['log'] = [];
         $view['db_log'] = [];
+        $view['sh_log'] = [];
     }
 	echo json_encode($view);
 }
