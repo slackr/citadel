@@ -121,10 +121,10 @@ $router->add_route('verify-session',
 			$response = array(
 				'status' => 'error',
 				'message' => 'Session did not verify',
-                'session_id' => $shv->session_id,
-                'session_ip' => $shv->session_ip,
-                'db_log' => $shv->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                'log' => $shv->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'session_id' => $vs->session_id,
+                'session_ip' => $vs->session_ip,
+                'db_log' => $vs->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'log' => $vs->log_tail(AppConfig::DEBUG_LOG_TAIL),
 			);
 		}
         return $response;
