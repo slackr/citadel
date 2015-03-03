@@ -2,6 +2,7 @@
 require_once (__DIR__).'/raindrops/controller/Authentication.php';
 require_once (__DIR__).'/raindrops/controller/Registration.php';
 require_once (__DIR__).'/raindrops/controller/SessionHandler.php';
+require_once (__DIR__).'/raindrops/controller/MailHandler.php';
 require_once (__DIR__).'/raindrops/model/Database.php';
 require_once (__DIR__).'/raindrops/router/Router.php';
 require_once (__DIR__).'/lib/AppConfig.php';
@@ -20,6 +21,7 @@ $realm = 'parallax';
 $id = null;
 $sh = null;
 $anon_routes = array( // dont check session for these routes
+    'recovery-token',
     'verify-session',
     'auth-request',
     'auth-reply',
@@ -62,6 +64,10 @@ $includes = array(
     'app.js' => array(''),
     'favicon.ico' => array(''),
 );
+
+if (sizeof($_GET) > 0) {
+    $_POST = $_GET;
+}
 
 session_start();
 
@@ -235,11 +241,15 @@ $router->add_route('register',
 		 * POST:
 		 * identity = string
 		 * pubkey = string
+		 * device = string
+		 * email = string
+		 * recovery_token = (optional) string
 		 */
         'identity' => $_POST['identity'],
         'pubkey' => $_POST['pubkey'],
         'device' => $_POST['device'],
         'email' => $_POST['email'],
+        'recovery_token' => $_POST['recovery_token'],
         'realm' => $realm,
     ),
     function($data) use (& $db) {
@@ -249,6 +259,7 @@ $router->add_route('register',
             'pubkey' => $data['pubkey'],
             'device' => $data['device'],
             'email' => $data['email'],
+            'recovery_token' => $data['recovery_token'],
         );
         if ($sfr->create_identity($identity_data)) {
             $response = array(
@@ -258,6 +269,7 @@ $router->add_route('register',
                 'email' => $sfr->email,
                 'device' => $data['device'],
                 'pubkey' => $data['pubkey'],
+                'recovery_token' => $data['recovery_token'],
                 'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
                 'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
             );
@@ -269,6 +281,57 @@ $router->add_route('register',
                 'email' => $data['email'],
                 'device' => $data['device'],
                 'pubkey' => $data['pubkey'],
+                'recovery_token' => $data['recovery_token'],
+                'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
+            );
+        }
+        return $response;
+    }
+);
+
+$router->add_route('recovery-token',
+    $data = array(
+		/**
+		 * POST:
+		 * identity = string
+		 * email = string
+		 * device = string
+		 */
+        'identity' => $_POST['identity'],
+        'email' => $_POST['email'],
+        'device' => $_POST['device'],
+        'realm' => $realm,
+    ),
+    function($data) use (& $db) {
+        $sfr = new \Raindrops\Registration($db, $data['identity'], $data['realm']);
+
+        if ($sfr->generate_recovery_token($data['device'], $data['email'])) {
+            $mh = new \Raindrops\MailHandler();
+            $mh->to = $sfr->email;
+            $mh->from = 'Parallax Identity <no-reply@echoes.im>';
+            $mh->subject = 'Identity recovery token';
+            $mh->message = 'Please use the following token during registration: '. $sfr->recovery_token;
+
+            $mail_sent = $mh->send($as_html = true);
+
+            $response = array(
+                'status' => 'success',
+                'message' => 'Recovery token created',
+                'identity' => $sfr->identity,
+                'email' => $sfr->email,
+                'device' => $data['device'],
+                'mail_sent' => $mail_sent,
+                'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
+            );
+        } else {
+            $response = array(
+                'status' => 'error',
+                'message' => 'Recovery token creation failed',
+                'identity' => $data['identity'],
+                'email' => $data['email'],
+                'device' => $data['device'],
                 'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
                 'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
             );
