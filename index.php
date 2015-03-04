@@ -317,7 +317,7 @@ $router->add_route('recovery-token',
 
             $response = array(
                 'status' => 'success',
-                'message' => 'Recovery token created',
+                'message' => 'Recovery token request successful',
                 'identity' => $sfr->identity,
                 'email' => $sfr->email,
                 'device' => $data['device'],
@@ -328,7 +328,7 @@ $router->add_route('recovery-token',
         } else {
             $response = array(
                 'status' => 'error',
-                'message' => 'Recovery token creation failed',
+                'message' => 'Recovery token request failed',
                 'identity' => $data['identity'],
                 'email' => $data['email'],
                 'device' => $data['device'],
