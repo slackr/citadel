@@ -311,7 +311,7 @@ $router->add_route('recovery-token',
             $mh->to = $sfr->email;
             $mh->from = 'Parallax Identity <no-reply@echoes.im>';
             $mh->subject = 'Identity recovery token';
-            $mh->message = 'Please use the following token during registration: '. $sfr->recovery_token;
+            $mh->message = 'Please use the following token to register '. $sfr->identity .': '. $sfr->recovery_token;
 
             $mail_sent = $mh->send($as_html = true);
 
