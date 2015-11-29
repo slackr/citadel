@@ -16,7 +16,7 @@ use \Parallax\ChannelMember;
 use \Parallax\AppConfig;
 
 $router = new \Raindrops\Router();
-$db = new \Raindrops\Database('mysql');
+$db = new \Raindrops\Database('sqlite');
 $realm = 'parallax';
 $id = null;
 $sh = null;
