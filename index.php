@@ -309,7 +309,8 @@ $router->add_route('recovery-token',
         if ($sfr->generate_recovery_token($data['device'], $data['email'])) {
             $mh = new \Raindrops\MailHandler();
             $mh->to = $sfr->email;
-            $mh->from = 'Parallax Identity <no-reply@echoes.im>';
+            $mh->from = 'no-reply@echoes.im';
+            $mh->from_name = 'Parallax Identity';
             $mh->subject = 'Identity recovery token';
             $mh->message = 'Please use the following token to register '. $sfr->identity .': '. $sfr->recovery_token;
 
