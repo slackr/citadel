@@ -1,0 +1,7 @@
+<?php namespace Parallax;
+
+class DebugConfig {
+    const DEBUG = true;
+    const DEBUG_LOG_TAIL = 10;
+}
+?>

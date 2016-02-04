@@ -6,6 +6,7 @@ require_once (__DIR__).'/raindrops/controller/MailHandler.php';
 require_once (__DIR__).'/raindrops/model/Database.php';
 require_once (__DIR__).'/raindrops/router/Router.php';
 require_once (__DIR__).'/lib/AppConfig.php';
+require_once (__DIR__).'/lib/DebugConfig.php';
 require_once (__DIR__).'/controller/Channel.php';
 require_once (__DIR__).'/controller/ChannelMember.php';
 require_once (__DIR__).'/controller/ChannelMessage.php';
@@ -14,6 +15,7 @@ use \Parallax\Channel;
 use \Parallax\ChannelMessage;
 use \Parallax\ChannelMember;
 use \Parallax\AppConfig;
+use \Parallax\DebugConfig;
 
 $router = new \Raindrops\Router();
 $db = new \Raindrops\Database('sqlite');
@@ -82,7 +84,7 @@ $router->add_route('!',
             $response = array(
                 'status' => 'error',
                 'message' => 'Database error',
-                'db_log' => $db->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'db_log' => $db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
             );
         }
 
@@ -94,8 +96,8 @@ $router->add_route('!',
                 $response = array(
                     'status' => 'error',
                     'message' => 'Not authenticated, please login or register',
-                    'db_log' => $sh->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                    'log' => $sh->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                    'db_log' => $sh->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
+                    'log' => $sh->log_tail(DebugConfig::DEBUG_LOG_TAIL),
                 );
             }
         }
@@ -120,8 +122,8 @@ $router->add_route('verify-session',
                 'session_id' => $vs->session_id,
                 'session_ip' => $vs->session_ip,
                 'identity' => $vs->identity,
-                'db_log' => $vs->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                'log' => $vs->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'db_log' => $vs->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
+                'log' => $vs->log_tail(DebugConfig::DEBUG_LOG_TAIL),
 			);
 		} else {
 			$response = array(
@@ -129,8 +131,8 @@ $router->add_route('verify-session',
 				'message' => 'Session did not verify',
                 'session_id' => $vs->session_id,
                 'session_ip' => $vs->session_ip,
-                'db_log' => $vs->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                'log' => $vs->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'db_log' => $vs->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
+                'log' => $vs->log_tail(DebugConfig::DEBUG_LOG_TAIL),
 			);
 		}
         return $response;
@@ -167,8 +169,8 @@ $router->add_route('auth-reply',
                     'identity' => $sfa->identity,
                     'device' => $data['device'],
 					'session_id' => session_id(),
-                    'db_log' => $sfa->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                    'log' => $sfa->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                    'db_log' => $sfa->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
+                    'log' => $sfa->log_tail(DebugConfig::DEBUG_LOG_TAIL),
                 );
             } else {
                 $response = array(
@@ -178,8 +180,8 @@ $router->add_route('auth-reply',
                     'device' => $data['device'],
                     'nonce_signature' => $data['nonce_signature'],
                     'nonce' => $data['nonce'],
-                    'db_log' => $sfa->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                    'log' => $sfa->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                    'db_log' => $sfa->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
+                    'log' => $sfa->log_tail(DebugConfig::DEBUG_LOG_TAIL),
                 );
             }
         } else {
@@ -190,8 +192,8 @@ $router->add_route('auth-reply',
                 'device' => $data['device'],
                 'nonce_signature' => $data['nonce_signature'],
                 'nonce' => $data['nonce'],
-                'db_log' => $sfa->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                'log' => $sfa->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'db_log' => $sfa->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
+                'log' => $sfa->log_tail(DebugConfig::DEBUG_LOG_TAIL),
             );
         }
 
@@ -218,8 +220,8 @@ $router->add_route('auth-request',
                 'nonce' => $sfa->challenge,
                 'identity' => $sfa->identity,
                 'device' => $data['device'],
-                'db_log' => $sfa->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                'log' => $sfa->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'db_log' => $sfa->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
+                'log' => $sfa->log_tail(DebugConfig::DEBUG_LOG_TAIL),
             );
         } else {
             $response = array(
@@ -227,8 +229,8 @@ $router->add_route('auth-request',
                 'message' => 'Authentication request failed',
                 'identity' => $sfa->identity,
                 'device' => $data['device'],
-                'db_log' => $sfa->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                'log' => $sfa->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'db_log' => $sfa->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
+                'log' => $sfa->log_tail(DebugConfig::DEBUG_LOG_TAIL),
             );
         }
         return $response;
@@ -270,8 +272,8 @@ $router->add_route('register',
                 'device' => $data['device'],
                 'pubkey' => $data['pubkey'],
                 'recovery_token' => $data['recovery_token'],
-                'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'db_log' => $sfr->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
+                'log' => $sfr->log_tail(DebugConfig::DEBUG_LOG_TAIL),
             );
         } else {
             $response = array(
@@ -282,8 +284,8 @@ $router->add_route('register',
                 'device' => $data['device'],
                 'pubkey' => $data['pubkey'],
                 'recovery_token' => $data['recovery_token'],
-                'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'db_log' => $sfr->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
+                'log' => $sfr->log_tail(DebugConfig::DEBUG_LOG_TAIL),
             );
         }
         return $response;
@@ -323,8 +325,8 @@ $router->add_route('recovery-token',
                 'email' => $sfr->email,
                 'device' => $data['device'],
                 'mail_sent' => $mail_sent,
-                'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'db_log' => $sfr->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
+                'log' => $sfr->log_tail(DebugConfig::DEBUG_LOG_TAIL),
             );
         } else {
             $response = array(
@@ -333,8 +335,8 @@ $router->add_route('recovery-token',
                 'identity' => $data['identity'],
                 'email' => $data['email'],
                 'device' => $data['device'],
-                'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'db_log' => $sfr->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
+                'log' => $sfr->log_tail(DebugConfig::DEBUG_LOG_TAIL),
             );
         }
         return $response;
@@ -357,8 +359,8 @@ $router->add_route('delete-identity',
                 'message' => 'Please confirm deletion by posting your identity',
                 'identity' => $data['identity'],
                 'auth_identity' => $id->identity,
-                'db_log' => $id->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                'log' => $id->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'db_log' => $id->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
+                'log' => $id->log_tail(DebugConfig::DEBUG_LOG_TAIL),
             );
             return $response;
         }
@@ -371,9 +373,9 @@ $router->add_route('delete-identity',
                 'status' => 'success',
                 'message' => 'Identity deleted',
                 'identity' => $sfr->identity,
-                'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                'sh_log' => $sh->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'db_log' => $sfr->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
+                'log' => $sfr->log_tail(DebugConfig::DEBUG_LOG_TAIL),
+                'sh_log' => $sh->log_tail(DebugConfig::DEBUG_LOG_TAIL),
             );
         } else {
             $response = array(
@@ -381,8 +383,8 @@ $router->add_route('delete-identity',
                 'message' => 'Identity deletion failed',
                 'identity' => $sfr->identity,
                 'pubkeys' => $sfr->pubkeys,
-                'db_log' => $sfr->db->log_tail(AppConfig::DEBUG_LOG_TAIL),
-                'log' => $sfr->log_tail(AppConfig::DEBUG_LOG_TAIL),
+                'db_log' => $sfr->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
+                'log' => $sfr->log_tail(DebugConfig::DEBUG_LOG_TAIL),
             );
         }
         return $response;
@@ -542,7 +544,7 @@ if (isset($view['include'])) {
 	include $view['include'];
     //echo $view['include'];
 } else {
-    if (! AppConfig::DEBUG) {
+    if (! DebugConfig::DEBUG) {
         $view['log'] = [];
         $view['db_log'] = [];
         $view['sh_log'] = [];
