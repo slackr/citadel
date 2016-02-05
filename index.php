@@ -91,6 +91,8 @@ $router->add_route('!',
         if (! in_array($router->request_action, $anon_routes)) {
             $session_seed = (isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : $_SERVER['REMOTE_ADDR']);
             $sh = new \Raindrops\SessionHandler($db, $data['realm'], null, $session_seed);
+            $sh->session_seed = $sh->clean_xff_header($sh->session_seed); // remove ports from xff header IPs
+
             if ($sh->verify()) {
                 $id = $sh->id;
             } else {
@@ -116,6 +118,8 @@ $router->add_route('verify-session',
 	),
 	function($data) use (& $db) {
 		$vs = new \Raindrops\SessionHandler($db, $data['realm'], $data['session_id'], $data['session_seed'], $data['identity']);
+        $vs->session_seed = $vs->clean_xff_header($vs->session_seed); // remove ports from xff header IPs
+
 		if ($vs->verify($read_only = true)) {
 			$response = array(
 				'status' => 'success',
@@ -161,6 +165,7 @@ $router->add_route('auth-reply',
         if ($sfa->get_identity()) {
             if ($sfa->verify_challenge_response($data)) {
                 $seed = (isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : $_SERVER['REMOTE_ADDR']);
+                $seed = $sfa->clean_xff_header($seed);
                 $sfa->generate_auth_token(array($seed));
 
                 $_SESSION['rd_auth_token'] = $sfa->token;
