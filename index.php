@@ -89,7 +89,7 @@ $router->add_route('!',
         }
 
         if (! in_array($router->request_action, $anon_routes)) {
-            $session_seed = md5($_SERVER['REMOTE_ADDR'] . $_SERVER['HTTP_X_FORWARDED_FOR']);
+            $session_seed = (isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : $_SERVER['REMOTE_ADDR']);
             $sh = new \Raindrops\SessionHandler($db, $data['realm'], null, $session_seed);
             if ($sh->verify()) {
                 $id = $sh->id;
@@ -111,7 +111,7 @@ $router->add_route('verify-session',
 	$data = array(
 		'realm' => $realm,
 		'session_id' => $_POST['session_id'],
-		'session_seed' => (isset($_POST['session_seed']) ? $_POST['session_seed'] : md5($_SERVER['REMOTE_ADDR'] . $_SERVER['HTTP_X_FORWARDED_FOR'])),
+		'session_seed' => (isset($_POST['session_seed']) ? $_POST['session_seed'] : (isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : $_SERVER['REMOTE_ADDR'])),
         'identity' => $_POST['identity'],
 	),
 	function($data) use (& $db) {
@@ -160,7 +160,7 @@ $router->add_route('auth-reply',
         $sfa = new \Raindrops\Authentication($db, $data['nonce_identity'], $data['realm']);
         if ($sfa->get_identity()) {
             if ($sfa->verify_challenge_response($data)) {
-                $seed = md5($_SERVER['REMOTE_ADDR'] . $_SERVER['HTTP_X_FORWARDED_FOR']);
+                $seed = (isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : $_SERVER['REMOTE_ADDR']);
                 $sfa->generate_auth_token(array($seed));
 
                 $_SESSION['rd_auth_token'] = $sfa->token;
