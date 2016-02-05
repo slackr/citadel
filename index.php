@@ -89,7 +89,8 @@ $router->add_route('!',
         }
 
         if (! in_array($router->request_action, $anon_routes)) {
-            $sh = new \Raindrops\SessionHandler($db, $data['realm']);
+            $session_seed = md5($_SERVER['REMOTE_ADDR'] . $_SERVER['HTTP_X_FORWARDED_FOR']);
+            $sh = new \Raindrops\SessionHandler($db, $data['realm'], null, $session_seed);
             if ($sh->verify()) {
                 $id = $sh->id;
             } else {
@@ -110,17 +111,17 @@ $router->add_route('verify-session',
 	$data = array(
 		'realm' => $realm,
 		'session_id' => $_POST['session_id'],
-		'session_ip' => (isset($_POST['session_ip']) ? $_POST['session_ip'] : $_SERVER['REMOTE_ADDR']),
+		'session_seed' => (isset($_POST['session_seed']) ? $_POST['session_seed'] : md5($_SERVER['REMOTE_ADDR'] . $_SERVER['HTTP_X_FORWARDED_FOR'])),
         'identity' => $_POST['identity'],
 	),
 	function($data) use (& $db) {
-		$vs = new \Raindrops\SessionHandler($db, $data['realm'], $data['session_id'], $data['session_ip'], $data['identity']);
+		$vs = new \Raindrops\SessionHandler($db, $data['realm'], $data['session_id'], $data['session_seed'], $data['identity']);
 		if ($vs->verify($read_only = true)) {
 			$response = array(
 				'status' => 'success',
 				'message' => 'Session verified',
                 'session_id' => $vs->session_id,
-                'session_ip' => $vs->session_ip,
+                'session_seed' => $vs->session_seed,
                 'identity' => $vs->identity,
                 'db_log' => $vs->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
                 'log' => $vs->log_tail(DebugConfig::DEBUG_LOG_TAIL),
@@ -130,7 +131,7 @@ $router->add_route('verify-session',
 				'status' => 'error',
 				'message' => 'Session did not verify',
                 'session_id' => $vs->session_id,
-                'session_ip' => $vs->session_ip,
+                'session_seed' => $vs->session_seed,
                 'db_log' => $vs->db->log_tail(DebugConfig::DEBUG_LOG_TAIL),
                 'log' => $vs->log_tail(DebugConfig::DEBUG_LOG_TAIL),
 			);
@@ -159,7 +160,9 @@ $router->add_route('auth-reply',
         $sfa = new \Raindrops\Authentication($db, $data['nonce_identity'], $data['realm']);
         if ($sfa->get_identity()) {
             if ($sfa->verify_challenge_response($data)) {
-                $sfa->generate_auth_token(array($_SERVER['REMOTE_ADDR']));
+                $seed = md5($_SERVER['REMOTE_ADDR'] . $_SERVER['HTTP_X_FORWARDED_FOR']);
+                $sfa->generate_auth_token(array($seed));
+
                 $_SESSION['rd_auth_token'] = $sfa->token;
                 $_SESSION['rd_auth_identity'] = $sfa->identity;
 
